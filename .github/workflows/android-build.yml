@@ -1,59 +1,149 @@
 name: Build App
 
+
+
 on:
+
   workflow_dispatch:
+
     inputs:
+
       os:
+
         type: choice
+
         description: OS to build on. Ubuntu is faster, MacOS supports iOS builds, Windows is unsupported
+
         options:
+
           - ubuntu-latest
+
           - macos-latest
+
       platform:
+
         type: choice
+
         description: Platform to build for
+
         options:
+
           - android
+
           - ios
+
       profile:
+
         type: choice
+
         description: Build profile to use
+
         options:
+
           - development
+
           - preview
+
           - production
+
           - previewMain
 
+
+
 jobs:
+
   build:
+
     runs-on: ${{ github.event.inputs.os }}
 
+
+
     steps:
+
       - name: Checkout repository
+
         uses: actions/checkout@v4
 
+
+
       - name: Setup Node.js
+
         uses: actions/setup-node@v4
+
         with:
-          node-version: 18
+
+          node-version: 'node'
+
           cache: npm
 
+
+
       - name: Install Expo CLI and EAS CLI
+
         uses: expo/expo-github-action@v8
+
         with:
+
           token: ${{ secrets.EXPO_TOKEN }}
+
           expo-version: latest
+
           eas-version: latest
 
+
+
+      - name: Install EAS local builds plugin
+
+        run: npm install -g eas-cli-local-build-plugin
+
+
+
       - name: Install dependencies
+
         run: npm install
 
-      - name: Build app with EAS (Cloud)
+
+
+      - name: Build app with EAS
+
         run: |
-          eas build \
+
+          eas build --local \
+
             --non-interactive \
+
             --platform=${{ github.event.inputs.platform }} \
+
             --profile=${{ github.event.inputs.profile }}
 
-      - name: Output build URL
-        run: echo "Check build status and download from https://expo.dev/accounts/YOUR_USERNAME/projects/YOUR_PROJECT/builds"
+
+
+      - name: List all build files
+
+        run: find . -type f \( -iname ".apk" -o -iname ".aab" -o -iname "*.ipa" \)
+
+
+
+      - name: Locate built file
+
+        id: find-artifact
+
+        run: |
+
+          ARTIFACT_PATH=$(find . -type f \( -iname ".apk" -o -iname ".aab" -o -iname "*.ipa" \) | head -n 1)
+
+          echo "Found artifact: $ARTIFACT_PATH"
+
+          echo "artifact-path=$ARTIFACT_PATH" >> $GITHUB_OUTPUT
+
+
+
+      - name: Upload binary artifact
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: app-${{ github.event.inputs.platform }}
+
+          path: ${{ steps.find-artifact.outputs.artifact-path }}
