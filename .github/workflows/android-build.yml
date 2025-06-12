@@ -48,12 +48,29 @@ jobs:
       - name: Install dependencies
         run: npm install
         
-      - name: Verify EAS authentication
+      - name: Install expo-dev-client for development builds
+        if: github.event.inputs.profile == 'development'
+        run: npx expo install expo-dev-client
+        
+      - name: Debug token and verify EAS authentication
         run: |
+          echo "Debugging token setup..."
+          if [ -n "$EXPO_TOKEN" ]; then
+            echo "✓ EXPO_TOKEN is set (length: ${#EXPO_TOKEN})"
+            echo "✓ Token starts with: ${EXPO_TOKEN:0:10}..."
+          else
+            echo "✗ EXPO_TOKEN is not set or empty"
+            echo "Available environment variables:"
+            env | grep -i expo || echo "No EXPO variables found"
+            exit 1
+          fi
+          
           echo "Checking EAS authentication..."
           eas whoami
           
       - name: Build app with EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           eas build --local \
             --non-interactive \
